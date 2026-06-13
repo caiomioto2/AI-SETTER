@@ -117,7 +117,14 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
-      retry: 1,
+      // Exponential backoff: 1s, 2s — then stop. Prevents retry loops on 400/401.
+      retry: (failureCount, error: any) => {
+        const status = error?.status ?? error?.code;
+        // Don't retry auth/session errors
+        if (status === 400 || status === 401 || status === 403) return false;
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 4000),
     },
   },
 });
@@ -174,22 +181,27 @@ const ConditionalSupportChat = () => {
   
   useEffect(() => {
     const checkPresentationMode = async () => {
-      if (!clientId) {
+      if (!clientId || !user) {
         setIsPresentationOnly(false);
         return;
       }
-      
-      const { data } = await supabase
-        .from('clients')
-        .select('presentation_only_mode')
-        .eq('id', clientId)
-        .single();
-      
-      setIsPresentationOnly(data?.presentation_only_mode === true);
+        
+      try {
+        const { data } = await supabase
+          .from('clients')
+          .select('presentation_only_mode')
+          .eq('id', clientId)
+          .single();
+          
+        setIsPresentationOnly(data?.presentation_only_mode === true);
+      } catch {
+        // Silently ignore — non-critical feature
+        setIsPresentationOnly(false);
+      }
     };
-    
+      
     checkPresentationMode();
-  }, [clientId]);
+  }, [clientId, user]);
   
   if (location.pathname.startsWith('/demo/') || location.pathname === '/home') {
     return null;

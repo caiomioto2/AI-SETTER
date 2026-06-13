@@ -2,7 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// Replace these with your own Supabase project URL and anon key.
+// Replace these with your Supabase project URL and anon key.
 // Found in: Supabase Dashboard → Project Settings → API
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "https://YOUR_PROJECT_ID.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "YOUR_SUPABASE_ANON_KEY";
@@ -15,5 +15,32 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-  }
+    detectSessionInUrl: true,
+  },
+  // Global fetch interceptor: abort requests early if no valid session
+  // to prevent cascading 400 errors across the dashboard
+  global: {
+    fetch: async (url, options = {}) => {
+      // Only intercept Supabase REST calls (not auth, storage, etc.)
+      const urlString = url.toString();
+      if (
+        urlString.includes('/rest/v1/') &&
+        !urlString.includes('/auth/')
+      ) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          if (!sessionData?.session?.access_token) {
+            // No session — return a mock 401 response to prevent network call
+            return new Response(
+              JSON.stringify({ error: 'No active session', code: '401', status: 401 }),
+              { status: 401, headers: { 'Content-Type': 'application/json' } }
+            );
+          }
+        } catch {
+          // If session check fails, let the request proceed normally
+        }
+      }
+      return fetch(url, options);
+    },
+  },
 });
