@@ -12,15 +12,6 @@ class Deps(BaseModel):
     chat_history: str
     prompts: dict
 
-# Result model as required by Trigger.dev
-class TextEngineResult(BaseModel):
-    Message_1: str = Field(description="The first response message chunk")
-    Message_2: Optional[str] = Field(default=None, description="The second response message chunk if split is needed")
-    Message_3: Optional[str] = Field(default=None, description="The third response message chunk if split is needed")
-    Message_4: Optional[str] = Field(default=None, description="The fourth response message chunk if split is needed")
-    Message_5: Optional[str] = Field(default=None, description="The fifth response message chunk if split is needed")
-
-
 # Creating a factory function so we can bind dynamic models (e.g., from OpenRouter)
 def create_text_engine_agent(model_name: str, api_key: str):
     """
@@ -34,7 +25,7 @@ def create_text_engine_agent(model_name: str, api_key: str):
 
     agent = Agent(
         model,
-        result_type=TextEngineResult,
+        result_type=AgentResponse,
         deps_type=Deps,
         retries=3,
     )
@@ -49,8 +40,6 @@ def create_text_engine_agent(model_name: str, api_key: str):
             f"# Bot Persona Prompt:\n{bot_persona}\n\n"
             f"# System Prompt:\n{system_rules}\n\n"
             f"# Booking Function Prompt:\n{booking_prompt}\n\n"
-            f"# User Contact Details:\n{ctx.deps.user_details}\n\n"
-            f"# Chat History:\n{ctx.deps.chat_history}\n\n"
             f"Respond appropriately following the bot persona and rules. Output your final response broken down into 1-5 messages."
         )
         return prompt

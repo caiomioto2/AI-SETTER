@@ -82,7 +82,7 @@ export const processMessages = task({
         .eq("ghl_location_id", ghl_account_id)
         .single();
 
-      if (clientError || !client?.text_engine_webhook) {
+      if (clientError || (!process.env.PYTHON_BACKEND_URL && !client?.text_engine_webhook)) {
         throw new Error(`Could not find client config for GHL account: ${ghl_account_id}`);
       }
       if (!client.ghl_send_setter_reply_webhook_url) {
@@ -211,7 +211,10 @@ export const processMessages = task({
           `${process.env.PYTHON_BACKEND_URL ? process.env.PYTHON_BACKEND_URL + '/webhooks/text-engine' : client.text_engine_webhook}?${n8nParams.toString()}`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(process.env.WEBHOOK_SECRET ? { "X-Webhook-Secret": process.env.WEBHOOK_SECRET } : {})
+            },
             signal: controller.signal,
           }
         );
