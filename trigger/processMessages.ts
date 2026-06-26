@@ -205,6 +205,7 @@ export const processMessages = task({
           Email: contact_email ?? "",
           Phone: contact_phone ?? "",
           Setter_Number: setter_number || "1",
+          Execution_ID: execution_id,
         });
 
         const n8nResponse = await fetch(
@@ -213,7 +214,7 @@ export const processMessages = task({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ...(process.env.WEBHOOK_SECRET ? { "X-Webhook-Secret": process.env.WEBHOOK_SECRET } : {})
+              ...(process.env.PYTHON_BACKEND_URL && process.env.WEBHOOK_SECRET ? { "X-Webhook-Secret": process.env.WEBHOOK_SECRET } : {})
             },
             signal: controller.signal,
           }

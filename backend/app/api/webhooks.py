@@ -17,12 +17,12 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 def verify_webhook_secret(x_webhook_secret: str = Header(None)):
-    if settings.webhook_secret and x_webhook_secret != settings.webhook_secret:
-        logger.error(f"Unauthorized webhook attempt with secret: {x_webhook_secret}")
+    if x_webhook_secret != settings.webhook_secret:
+        logger.error("Unauthorized webhook attempt")
         raise HTTPException(status_code=401, detail="Unauthorized")
     return x_webhook_secret
 
-async def get_common_context(GHL_Account_ID: str, Lead_ID: str, Message_Body: str = None):
+async def get_common_context(GHL_Account_ID: str, Lead_ID: str, Message_Body: str = None, Execution_ID: str = None):
     client_config = await get_client_config(GHL_Account_ID)
     prompts = await get_client_prompts(
         client_config["supabase_url"],
@@ -35,15 +35,18 @@ async def get_common_context(GHL_Account_ID: str, Lead_ID: str, Message_Body: st
     )
 
     is_duplicate = False
-    if Message_Body and history:
+    if Message_Body and history and Execution_ID:
         for h in reversed(history):
             msg = h.get("message", {})
-            if msg.get("type") == "human" and msg.get("content") == Message_Body:
+            if msg.get("type") == "human" and msg.get("execution_id") == Execution_ID:
                 is_duplicate = True
                 break
 
     if Message_Body and not is_duplicate:
         user_message_entry = {"type": "human", "content": Message_Body}
+        if Execution_ID:
+            user_message_entry["execution_id"] = Execution_ID
+
         await save_chat_message(
             client_config["supabase_url"],
             client_config["supabase_service_key"],
@@ -63,13 +66,14 @@ async def text_engine_webhook(
     Message_Body: str = Query(...),
     Lead_ID: str = Query(...),
     GHL_Account_ID: str = Query(...),
+    Execution_ID: str = Query(default=None),
     Name: str = Query(default=""),
     Email: str = Query(default=""),
     Phone: str = Query(default=""),
     Setter_Number: str = Query(default="1")
 ):
     try:
-        client_config, prompts, history_str, history = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
+        client_config, prompts, history_str, history = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body, Execution_ID)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
         api_key = client_config["openrouter_api_key"]
 
@@ -116,6 +120,7 @@ async def text_engine_webhook(
                     Lead_ID,
                     {"type": "ai", "content": msg}
                 )
+                existing_ai_messages.append(msg)
 
         return AgentResponse(
             Message_1=response_data.Message_1,
@@ -126,7 +131,7 @@ async def text_engine_webhook(
         )
     except Exception as e:
         logger.exception("Webhook failed")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 @router.post("/voice-sales-rep")
 async def voice_sales_rep_webhook(
@@ -137,7 +142,7 @@ async def voice_sales_rep_webhook(
     GHL_Account_ID: str = Query(...)
 ):
     try:
-        client_config, prompts, history_str, history = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
+        client_config, prompts, history_str, history = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body, Execution_ID)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
         agent = create_voice_sales_rep_agent(model_name, client_config["openrouter_api_key"])
         deps = VoiceDeps(user_details={"Lead_ID": Lead_ID}, prompts=prompts)
@@ -145,7 +150,7 @@ async def voice_sales_rep_webhook(
         return {"response": result.data.response}
     except Exception as e:
         logger.exception("Webhook failed")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 @router.post("/ghl-booking")
 async def ghl_booking_webhook(
@@ -156,7 +161,7 @@ async def ghl_booking_webhook(
     GHL_Account_ID: str = Query(...)
 ):
     try:
-        client_config, prompts, history_str, history = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
+        client_config, prompts, history_str, history = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body, Execution_ID)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
         agent = create_ghl_booking_agent(model_name, client_config["openrouter_api_key"])
         deps = BookingDeps(user_details={"Lead_ID": Lead_ID}, prompts=prompts)
@@ -164,7 +169,7 @@ async def ghl_booking_webhook(
         return {"action": result.data.action, "message": result.data.message}
     except Exception as e:
         logger.exception("Webhook failed")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 @router.post("/knowledgebase-automation")
 async def knowledgebase_webhook(
@@ -175,7 +180,7 @@ async def knowledgebase_webhook(
     GHL_Account_ID: str = Query(...)
 ):
     try:
-        client_config, prompts, history_str, history = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
+        client_config, prompts, history_str, history = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body, Execution_ID)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
         agent = create_knowledgebase_agent(model_name, client_config["openrouter_api_key"])
         deps = KBDeps(user_details={"Lead_ID": Lead_ID}, prompts=prompts)
@@ -183,7 +188,7 @@ async def knowledgebase_webhook(
         return {"answer": result.data.answer}
     except Exception as e:
         logger.exception("Webhook failed")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 @router.post("/database-reactivation")
 async def database_reactivation_webhook(
@@ -194,7 +199,7 @@ async def database_reactivation_webhook(
     GHL_Account_ID: str = Query(...)
 ):
     try:
-        client_config, prompts, history_str, history = await get_common_context(GHL_Account_ID, Lead_ID)
+        client_config, prompts, history_str, history = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
         agent = create_database_reactivation_agent(model_name, client_config["openrouter_api_key"])
         deps = ReactivationDeps(user_details={"Lead_ID": Lead_ID}, prompts=prompts)
@@ -202,4 +207,4 @@ async def database_reactivation_webhook(
         return {"message": result.data.message}
     except Exception as e:
         logger.exception("Webhook failed")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
