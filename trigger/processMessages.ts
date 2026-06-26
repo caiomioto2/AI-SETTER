@@ -188,7 +188,7 @@ export const processMessages = task({
         stage_description: "Sending to AI engine...",
       });
 
-      console.log(`Sending to n8n: ${client.text_engine_webhook}`);
+      console.log(`Sending to AI engine: ${process.env.PYTHON_BACKEND_URL ? process.env.PYTHON_BACKEND_URL + '/webhooks/text-engine' : client.text_engine_webhook}`);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000);
@@ -208,7 +208,7 @@ export const processMessages = task({
         });
 
         const n8nResponse = await fetch(
-          `${client.text_engine_webhook}?${n8nParams.toString()}`,
+          `${process.env.PYTHON_BACKEND_URL ? process.env.PYTHON_BACKEND_URL + '/webhooks/text-engine' : client.text_engine_webhook}?${n8nParams.toString()}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
