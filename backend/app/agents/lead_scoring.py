@@ -24,7 +24,7 @@ def create_lead_scoring_agent(model_name: str, api_key: str):
 
     @agent.system_prompt
     def system_prompt(ctx: RunContext[ScoringDeps]) -> str:
-        return f"""
+        return """
 # Prospect Scoring AI - LEARN FROM CONVERSATION HISTORY
 
 You are a scoring engine that analyzes the user's final message AND the full conversation history to assign a numerical score to the prospect.
@@ -46,8 +46,5 @@ The maximum score is 500 based on cumulative point additions.
 - +50 points: The user explains their business in more depth.
 - +100 points: The user explicitly states they are looking for a solution like ours.
 - +80 points: The user explicitly states they are actively running webinars right now.
-
-## Chat History
-{ctx.deps.chat_history_str}
 """
     return agent

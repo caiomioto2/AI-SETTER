@@ -2,6 +2,8 @@ from supabase import create_client, Client
 from app.core.config import settings
 import asyncio
 from functools import partial
+import logging
+logger = logging.getLogger(__name__)
 
 def get_platform_supabase() -> Client:
     """Returns a Supabase client connected to the platform database using the service role key."""
@@ -27,6 +29,8 @@ async def get_client_config(ghl_account_id: str):
 
     if not response.data:
         raise ValueError(f"No client found for GHL_Account_ID: {ghl_account_id}")
+    elif len(response.data) > 1:
+        raise ValueError(f"Multiple clients found for GHL_Account_ID: {ghl_account_id}")
 
     return response.data[0]
 
@@ -50,13 +54,13 @@ async def get_chat_history(supabase_url: str, supabase_key: str, session_id: str
 
     try:
         def _get():
-            return client_supabase.table("Chat_History").select("*").eq("sessionId", session_id).order("id", desc=False).limit(limit).execute()
+            return client_supabase.table("Chat_History").select("*").eq("sessionId", session_id).order("id", desc=True).limit(limit).execute()
 
         response = await _run_async(_get)
-        return response.data
+        return list(reversed(response.data))
     except Exception as e:
-        print(f"Error fetching chat history: {e}")
-        return []
+        logger.exception("Error fetching chat history")
+        raise
 
 async def save_chat_message(supabase_url: str, supabase_key: str, session_id: str, message: dict):
     """Save a message to the client's chat history"""
@@ -70,5 +74,5 @@ async def save_chat_message(supabase_url: str, supabase_key: str, session_id: st
         response = await _run_async(_insert)
         return response.data
     except Exception as e:
-        print(f"Error saving chat message: {e}")
-        return None
+        logger.exception("Error saving chat message")
+        raise
