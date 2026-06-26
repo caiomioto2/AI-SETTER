@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import webhooks
 
-app = FastAPI(title="1Prompt OS - Python Backend", version="1.0.0")
+app = FastAPI(title="AI Setter API", description="AI-powered lead engagement and booking automation via GoHighLevel webhooks.", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

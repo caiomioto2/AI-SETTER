@@ -13,7 +13,24 @@ import json
 
 router = APIRouter()
 
-async def get_common_context(GHL_Account_ID: str, Lead_ID: str, Message_Body: str = None):
+
+async def get_common_context(GHL_Account_ID: str, Lead_ID: str, Message_Body: str = None) -> tuple:
+    """Retrieve common context needed for webhook processing.
+
+    Fetches client configuration, prompts, and chat history from Supabase.
+    Optionally saves incoming user message to chat history.
+
+    Args:
+        GHL_Account_ID: The GoHighLevel account/location identifier.
+        Lead_ID: The lead identifier for chat history.
+        Message_Body: Optional incoming message body to save to history.
+
+    Returns:
+        A tuple of (client_config, prompts, history_str).
+
+    Raises:
+        ValueError: If no client is found for the given GHL_Account_ID.
+    """
     client_config = await get_client_config(GHL_Account_ID)
     prompts = await get_client_prompts(
         client_config["supabase_url"],
@@ -47,7 +64,30 @@ async def text_engine_webhook(
     Email: str = Query(default=""),
     Phone: str = Query(default=""),
     Setter_Number: str = Query(default="1")
-):
+) -> AgentResponse:
+    """Process incoming text messages through the AI text engine.
+
+    This webhook handles lead conversations by:
+    1. Loading client prompts and chat history from Supabase
+    2. Running lead scoring to qualify the lead
+    3. Generating AI responses using the text engine agent
+    4. Saving all responses to chat history
+
+    Args:
+        Message_Body: The incoming message from the lead.
+        Lead_ID: The lead identifier in GHL.
+        GHL_Account_ID: The GoHighLevel location/account ID.
+        Name: Optional lead name.
+        Email: Optional lead email.
+        Phone: Optional lead phone.
+        Setter_Number: Which setter configuration to use (default: "1").
+
+    Returns:
+        AgentResponse containing 1-5 message chunks for the lead.
+
+    Raises:
+        HTTPException: 500 if any error occurs during processing.
+    """
     try:
         client_config, prompts, history_str = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
@@ -108,7 +148,23 @@ async def voice_sales_rep_webhook(
     Message_Body: str = Query(...),
     Lead_ID: str = Query(...),
     GHL_Account_ID: str = Query(...)
-):
+) -> dict:
+    """Process voice sales rep requests through the AI agent.
+
+    Handles voice-based sales conversations by loading client prompts
+    and generating conversational responses.
+
+    Args:
+        Message_Body: The incoming message from the lead.
+        Lead_ID: The lead identifier in GHL.
+        GHL_Account_ID: The GoHighLevel location/account ID.
+
+    Returns:
+        dict with 'response' key containing the AI-generated response.
+
+    Raises:
+        HTTPException: 500 if any error occurs during processing.
+    """
     try:
         client_config, prompts, history_str = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
@@ -124,7 +180,23 @@ async def ghl_booking_webhook(
     Message_Body: str = Query(...),
     Lead_ID: str = Query(...),
     GHL_Account_ID: str = Query(...)
-):
+) -> dict:
+    """Process GHL booking requests through the AI agent.
+
+    Handles appointment booking workflows by loading booking prompts
+    and generating booking actions.
+
+    Args:
+        Message_Body: The incoming message from the lead.
+        Lead_ID: The lead identifier in GHL.
+        GHL_Account_ID: The GoHighLevel location/account ID.
+
+    Returns:
+        dict with 'action' and 'message' keys.
+
+    Raises:
+        HTTPException: 500 if any error occurs during processing.
+    """
     try:
         client_config, prompts, history_str = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
@@ -140,7 +212,23 @@ async def knowledgebase_webhook(
     Message_Body: str = Query(...),
     Lead_ID: str = Query(...),
     GHL_Account_ID: str = Query(...)
-):
+) -> dict:
+    """Process knowledge base queries through the AI agent.
+
+    Answers user questions based on knowledge base rules loaded
+    from the client's prompts.
+
+    Args:
+        Message_Body: The user's question.
+        Lead_ID: The lead identifier in GHL.
+        GHL_Account_ID: The GoHighLevel location/account ID.
+
+    Returns:
+        dict with 'answer' key containing the retrieved answer.
+
+    Raises:
+        HTTPException: 500 if any error occurs during processing.
+    """
     try:
         client_config, prompts, history_str = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
@@ -156,7 +244,23 @@ async def database_reactivation_webhook(
     Message_Body: str = Query(default=""),
     Lead_ID: str = Query(...),
     GHL_Account_ID: str = Query(...)
-):
+) -> dict:
+    """Process database reactivation requests through the AI agent.
+
+    Generates reactivation messages for cold leads based on
+    persona and reactivation prompts from the database.
+
+    Args:
+        Message_Body: Optional message context for reactivation.
+        Lead_ID: The lead identifier in GHL.
+        GHL_Account_ID: The GoHighLevel location/account ID.
+
+    Returns:
+        dict with 'message' key containing the reactivation message.
+
+    Raises:
+        HTTPException: 500 if any error occurs during processing.
+    """
     try:
         client_config, prompts, history_str = await get_common_context(GHL_Account_ID, Lead_ID)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")

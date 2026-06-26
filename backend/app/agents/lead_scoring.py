@@ -3,12 +3,35 @@ from pydantic import BaseModel, Field
 from pydantic_ai.models.openai import OpenAIChatModel
 
 class ScoringDeps(BaseModel):
+    """Dependency injection model for the lead scoring agent.
+
+    Attributes:
+        chat_history_str: String representation of the conversation history.
+    """
     chat_history_str: str
 
 class LeadScoreResult(BaseModel):
+    """Result model for lead scoring.
+
+    Attributes:
+        score: Lead score based on conversation history, ranging from 1 to 500.
+    """
     score: int = Field(ge=1, le=500, description="Lead score based on conversation history")
 
-def create_lead_scoring_agent(model_name: str, api_key: str):
+
+def create_lead_scoring_agent(model_name: str, api_key: str) -> Agent:
+    """Create a lead scoring agent using an OpenAI-compatible model via OpenRouter.
+
+    This agent analyzes conversation history and assigns a numerical score
+    to qualify leads based on their engagement level and buying signals.
+
+    Args:
+        model_name: The model identifier (e.g., 'google/gemini-2.5-flash').
+        api_key: The OpenRouter API key for authentication.
+
+    Returns:
+        A configured Pydantic AI Agent instance for lead scoring.
+    """
     model = OpenAIChatModel(
         model_name,
         api_key=api_key,
