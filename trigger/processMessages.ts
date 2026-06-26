@@ -82,7 +82,7 @@ export const processMessages = task({
         .eq("ghl_location_id", ghl_account_id)
         .single();
 
-      if (clientError || !client?.text_engine_webhook) {
+      if (clientError || (!process.env.PYTHON_BACKEND_URL && !client?.text_engine_webhook)) {
         throw new Error(`Could not find client config for GHL account: ${ghl_account_id}`);
       }
       if (!client.ghl_send_setter_reply_webhook_url) {
@@ -188,7 +188,7 @@ export const processMessages = task({
         stage_description: "Sending to AI engine...",
       });
 
-      console.log(`Sending to n8n: ${client.text_engine_webhook}`);
+      console.log(`Sending to AI engine: ${process.env.PYTHON_BACKEND_URL ? process.env.PYTHON_BACKEND_URL + '/webhooks/text-engine' : client.text_engine_webhook}`);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000);
@@ -208,7 +208,7 @@ export const processMessages = task({
         });
 
         const n8nResponse = await fetch(
-          `${client.text_engine_webhook}?${n8nParams.toString()}`,
+          `${process.env.PYTHON_BACKEND_URL ? process.env.PYTHON_BACKEND_URL + '/webhooks/text-engine' : client.text_engine_webhook}?${n8nParams.toString()}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
