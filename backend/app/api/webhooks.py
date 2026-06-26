@@ -93,8 +93,19 @@ async def text_engine_webhook(
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
         api_key = client_config["openrouter_api_key"]
 
-        # Lead Scoring Agent execution
-        scoring_agent = create_lead_scoring_agent(model_name, api_key)
+        # Define fallback model with larger context window
+        fallback_model = "nvidia/nemotron-3-8b-instruct:free"  # NVIDIA Nemotron 3 8B via OpenRouter (free tier)
+        
+        # Helper function to create agent with fallback
+        def create_agent_with_fallback(create_func, model, api_key):
+            try:
+                return create_func(model, api_key)
+            except Exception as e:
+                print(f"Primary model {model} failed, falling back to {fallback_model}: {str(e)}")
+                return create_func(fallback_model, api_key)
+
+        # Lead Scoring Agent execution with fallback
+        scoring_agent = create_agent_with_fallback(create_lead_scoring_agent, model_name, api_key)
         scoring_deps = ScoringDeps(chat_history_str=history_str)
         scoring_result = await scoring_agent.run("Calculate lead score", deps=scoring_deps)
         lead_score = scoring_result.data.score
@@ -103,8 +114,8 @@ async def text_engine_webhook(
         # For this prototype we will just print it to logs
         print(f"Lead Score for {Lead_ID}: {lead_score}")
 
-        # Main text engine execution
-        agent = create_text_engine_agent(model_name, api_key)
+        # Main text engine execution with fallback
+        agent = create_agent_with_fallback(create_text_engine_agent, model_name, api_key)
         deps = Deps(
             user_details={"Name": Name, "Email": Email, "Phone": Phone, "Score": lead_score},
             chat_history=history_str,
@@ -168,7 +179,20 @@ async def voice_sales_rep_webhook(
     try:
         client_config, prompts, history_str = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
-        agent = create_voice_sales_rep_agent(model_name, client_config["openrouter_api_key"])
+        api_key = client_config["openrouter_api_key"]
+
+        # Define fallback model with larger context window
+        fallback_model = "nvidia/nemotron-3-8b-instruct:free"  # NVIDIA Nemotron 3 8B via OpenRouter (free tier)
+        
+        # Helper function to create agent with fallback
+        def create_agent_with_fallback(create_func, model, api_key):
+            try:
+                return create_func(model, api_key)
+            except Exception as e:
+                print(f"Primary model {model} failed, falling back to {fallback_model}: {str(e)}")
+                return create_func(fallback_model, api_key)
+
+        agent = create_agent_with_fallback(create_voice_sales_rep_agent, model_name, api_key)
         deps = VoiceDeps(user_details={"Lead_ID": Lead_ID}, prompts=prompts)
         result = await agent.run(Message_Body, deps=deps)
         return {"response": result.data.response}
@@ -200,7 +224,20 @@ async def ghl_booking_webhook(
     try:
         client_config, prompts, history_str = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
-        agent = create_ghl_booking_agent(model_name, client_config["openrouter_api_key"])
+        api_key = client_config["openrouter_api_key"]
+
+        # Define fallback model with larger context window
+        fallback_model = "nvidia/nemotron-3-8b-instruct:free"  # NVIDIA Nemotron 3 8B via OpenRouter (free tier)
+        
+        # Helper function to create agent with fallback
+        def create_agent_with_fallback(create_func, model, api_key):
+            try:
+                return create_func(model, api_key)
+            except Exception as e:
+                print(f"Primary model {model} failed, falling back to {fallback_model}: {str(e)}")
+                return create_func(fallback_model, api_key)
+
+        agent = create_agent_with_fallback(create_ghl_booking_agent, model_name, api_key)
         deps = BookingDeps(user_details={"Lead_ID": Lead_ID}, prompts=prompts)
         result = await agent.run(Message_Body, deps=deps)
         return {"action": result.data.action, "message": result.data.message}
@@ -230,9 +267,22 @@ async def knowledgebase_webhook(
         HTTPException: 500 if any error occurs during processing.
     """
     try:
-        client_config, prompts, history_str = await get_common_context(GHL_Account_ID, Lead_ID, Message_Body)
+        client_config, prompts, history_str = await get_common_context(GHL_Account_ID, Lead_ID, Message_BODY)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
-        agent = create_knowledgebase_agent(model_name, client_config["openrouter_api_key"])
+        api_key = client_config["openrouter_api_key"]
+
+        # Define fallback model with larger context window
+        fallback_model = "nvidia/nemotron-3-8b-instruct:free"  # NVIDIA Nemotron 3 8B via OpenRouter (free tier)
+        
+        # Helper function to create agent with fallback
+        def create_agent_with_fallback(create_func, model, api_key):
+            try:
+                return create_func(model, api_key)
+            except Exception as e:
+                print(f"Primary model {model} failed, falling back to {fallback_model}: {str(e)}")
+                return create_func(fallback_model, api_key)
+
+        agent = create_agent_with_fallback(create_knowledgebase_agent, model_name, api_key)
         deps = KBDeps(user_details={"Lead_ID": Lead_ID}, prompts=prompts)
         result = await agent.run(Message_Body, deps=deps)
         return {"answer": result.data.answer}
@@ -264,7 +314,20 @@ async def database_reactivation_webhook(
     try:
         client_config, prompts, history_str = await get_common_context(GHL_Account_ID, Lead_ID)
         model_name = client_config.get("llm_model", "google/gemini-2.5-flash")
-        agent = create_database_reactivation_agent(model_name, client_config["openrouter_api_key"])
+        api_key = client_config["openrouter_api_key"]
+
+        # Define fallback model with larger context window
+        fallback_model = "nvidia/nemotron-3-8b-instruct:free"  # NVIDIA Nemotron 3 8B via OpenRouter (free tier)
+        
+        # Helper function to create agent with fallback
+        def create_agent_with_fallback(create_func, model, api_key):
+            try:
+                return create_func(model, api_key)
+            except Exception as e:
+                print(f"Primary model {model} failed, falling back to {fallback_model}: {str(e)}")
+                return create_func(fallback_model, api_key)
+
+        agent = create_agent_with_fallback(create_database_reactivation_agent, model_name, api_key)
         deps = ReactivationDeps(user_details={"Lead_ID": Lead_ID}, prompts=prompts)
         result = await agent.run(f"Reactivate lead {Lead_ID}", deps=deps)
         return {"message": result.data.message}
